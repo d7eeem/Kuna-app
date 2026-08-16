@@ -30,7 +30,7 @@ jobs:
           DIFF_BASE: ${{ github.base_ref }}
 
   codeql:
-    if: ${{ github.event.pull_request.head.repo.fork == false }}
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     name: CodeQL (Swift)
     runs-on: macos-15
     permissions:

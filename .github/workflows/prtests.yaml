@@ -84,7 +84,7 @@ jobs:
   publish_results:
     name: Publish unit test results
     needs: tests
-    if: ${{ always() && !cancelled() && github.event.pull_request.head.repo.fork == false }}
+    if: ${{ always() && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     permissions:
       checks: write
