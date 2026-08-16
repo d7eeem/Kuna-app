@@ -9,4 +9,5 @@ fastlane/test_output/
 fastlane/build/
 .bundle/
 vendor/
+.build/
 fastlane/metadata/review_information/*.txt
