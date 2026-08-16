@@ -80,28 +80,6 @@
                ReferencedContainer = "container:Kuna.xcodeproj">
             </BuildableReference>
          </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "79A68AFC2E5BBA4B00776E4A"
-               BuildableName = "KunaUITests2.xctest"
-               BlueprintName = "KunaUITests2"
-               ReferencedContainer = "container:Kuna.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "7940D16B2E66FC0000C134C8"
-               BuildableName = "KunaEventKitTests.xctest"
-               BlueprintName = "KunaEventKitTests"
-               ReferencedContainer = "container:Kuna.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

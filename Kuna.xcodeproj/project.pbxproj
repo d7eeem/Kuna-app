@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		791F94922E578264004CC4E5 /* UnitTestPlan.xctestplan in Resources */ = {isa = PBXBuildFile; fileRef = 791F94912E578264004CC4E5 /* UnitTestPlan.xctestplan */; };
 		79AE791D2E51F6D4001FCABD /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 79AE791C2E51F6D4001FCABD /* ConfettiSwiftUI */; };
 		79AE7A7D2E533CF0001FCABD /* TelemetryClient in Frameworks */ = {isa = PBXBuildFile; productRef = 79AE7A7C2E533CF0001FCABD /* TelemetryClient */; };
 		79AE7A7F2E533CF0001FCABD /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = 79AE7A7E2E533CF0001FCABD /* TelemetryDeck */; };
@@ -446,7 +445,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				791F94922E578264004CC4E5 /* UnitTestPlan.xctestplan in Resources */,
 				79F311F12E5E7F0700DC0500 /* crowdin.yml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
