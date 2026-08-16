@@ -43,6 +43,9 @@
             reference = "container:UnitTestPlan.xctestplan"
             default = "YES">
          </TestPlanReference>
+         <TestPlanReference
+            reference = "container:UXTests.xctestplan">
+         </TestPlanReference>
       </TestPlans>
    </TestAction>
    <LaunchAction
