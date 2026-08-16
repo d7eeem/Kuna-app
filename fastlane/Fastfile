@@ -14,8 +14,7 @@ platform :ios do
       testplan: "UnitTestPlan",
       output_types: "junit",
       output_directory: "fastlane/test_output",
-      output_files: "junit.xml",
-      skip_testing: ["KunaEventKitTests"]
+      output_files: "junit.xml"
     )
   end
 
@@ -32,9 +31,7 @@ platform :ios do
       output_types: "junit,json",
       output_directory: "fastlane/test_output",
       output_files: "junit.xml,test_result.json",
-      skip_testing: ["KunaEventKitTests"],
-      fail_build: true,
-      xcargs: "-allowProvisioningUpdates"
+      fail_build: true
     )
     xcov(
       project: "Kuna.xcodeproj",

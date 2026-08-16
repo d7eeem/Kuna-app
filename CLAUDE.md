@@ -8,27 +8,40 @@ Kuna is an iOS task management app that serves as a client for the Vikunja API. 
 
 ## Build and Development Commands
 
+Prerequisites: use Xcode 16.4 (build 16F6) in CI, Ruby 3.4.10 from
+`.ruby-version`, and the bundled gems from `Gemfile.lock`. The CI lint gate uses
+`norio-nomura/action-swiftlint` 3.2.1 with `--strict`; install a compatible
+SwiftLint locally before running the lint command. Test runs also require an
+installed simulator named `iPhone 16`.
+
 ```bash
 # Open in Xcode
 open Kuna.xcodeproj
 
-# Build from command line
-xcodebuild -project Kuna.xcodeproj -scheme Kuna build
+# Install the pinned Ruby dependencies
+bundle config set path vendor/bundle
+bundle install
 
-# Clean build
-xcodebuild -project Kuna.xcodeproj -scheme Kuna clean
+# Strict lint
+swiftlint lint --strict --config .swiftlint.yml
 
-# Run on simulator
-xcodebuild -project Kuna.xcodeproj -scheme Kuna -destination 'platform=iOS Simulator,name=iPhone 16 Pro' run
+# Unit and EventKit test plan
+CI=true DEVICES="iPhone 16" bundle exec fastlane ios ci_tests
+
+# Unsigned simulator builds with repository-local build products and packages
+xcodebuild -project Kuna.xcodeproj -scheme Kuna -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath .build/DerivedData -clonedSourcePackagesDirPath .build/SourcePackages CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project Kuna.xcodeproj -scheme Kuna -configuration Release -destination 'generic/platform=iOS Simulator' -derivedDataPath .build/DerivedData -clonedSourcePackagesDirPath .build/SourcePackages CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project Kuna.xcodeproj -scheme KunaWidgetExtension -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath .build/WidgetDerivedData -clonedSourcePackagesDirPath .build/SourcePackages CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project Kuna.xcodeproj -scheme KunaWidgetExtension -configuration Release -destination 'generic/platform=iOS Simulator' -derivedDataPath .build/WidgetDerivedData -clonedSourcePackagesDirPath .build/SourcePackages CODE_SIGNING_ALLOWED=NO build
 ```
 
 ## Architecture
 
 ### Core Components
 
-1. **AppState** (`App/AppState.swift`): Central authentication and global state management using `@ObservableObject`
+1. **AppState** (`Kuna/App/AppState.swift`): Central authentication and global state management using `@ObservableObject`
 2. **VikunjaAPI** (`Services/VikunjaAPI.swift`): Core API client with retry logic, handles all Vikunja server communication
-3. **CalendarSyncEngine** (`Services/CalendarSyncEngine.swift`): Bidirectional calendar synchronization with EventKit
+3. **CalendarSyncEngine** (`Kuna/Services/CalendarSync/CalendarSyncEngine.swift`): Bidirectional calendar synchronization with EventKit
 4. **AppSettings** (`Services/AppSettings.swift`): Persistent settings using UserDefaults with `@Published` properties
 
 ### Navigation Flow
@@ -85,7 +98,11 @@ Services use `@MainActor` for thread safety and follow singleton pattern where a
 
 ### Testing Approach
 
-Currently no dedicated test targets. Components include preview providers for SwiftUI development. `AppIconTestView.swift` exists for icon testing.
+`UnitTestPlan.xctestplan` runs `KunaUnitTests` and `KunaEventKitTests`. The
+separate `UXTests.xctestplan` runs `KunaUITests`. EventKit tests may deliberately
+skip environment-dependent cases when no writable calendar source is available;
+the target is still part of the unit-test plan. Components also include preview
+providers for SwiftUI development. `AppIconTestView.swift` exists for icon testing.
 
 ## Key Implementation Notes
 

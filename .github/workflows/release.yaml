@@ -1,3 +1,4 @@
+---
 name: Release (Tag + TestFlight + GitHub Release)
 
 on:
@@ -11,70 +12,81 @@ on:
         required: false
         type: string
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  # 0) Fast fail: ensure the tag matches Xcode's Marketing Version
   version_check:
     name: Validate version matches tag
-    runs-on: macos-latest
+    runs-on: macos-15
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: "16.4"
+
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Validate Xcode version matches tag
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"   # e.g. v1.0.3
-          EXPECTED="${TAG#v}"              # 1.0.3
+          TAG="${REQUESTED_TAG:-${GITHUB_REF#refs/tags/}}"
+          EXPECTED="${TAG#v}"
           ACTUAL=$(xcodebuild -showBuildSettings -scheme "Kuna" -configuration Release \
             | awk -F'= ' '/MARKETING_VERSION/ {print $2; exit}')
           echo "Tag says: $EXPECTED | Xcode says: $ACTUAL"
           [ "$EXPECTED" = "$ACTUAL" ] || { echo "Version mismatch"; exit 1; }
 
-  # 1) Build & test (only if version check passes)
   tests:
-    name: Build & Test
-    runs-on: macos-latest
+    name: Unit and EventKit tests
     needs: version_check
+    runs-on: macos-15
     timeout-minutes: 60
-
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Set Xcode version
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: "16.4"
+
+      - name: Show Xcode version
         run: xcodebuild -version
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
         with:
-          ruby-version: "3.2"
+          ruby-version: "3.4.10"
           bundler-cache: true
 
-      - name: Install gems
-        run: bundle install
-
-      - name: SwiftLint (strict)
-        run: |
-          brew update
-          brew install swiftlint
-          swiftlint --strict || true
-
-      - name: Run tests (Fastlane)
+      - name: Run tests
         env:
           CI: "true"
-        run: bundle exec fastlane ci_tests
+          DEVICES: "iPhone 16"
+        run: bundle exec fastlane ios ci_tests
 
       - name: Extract coverage summary
         if: always()
+        shell: bash
         run: |
-          set -e
-          BUNDLE="$(ls -dt fastlane/test_output/*.xcresult | head -n1 || true)"
-          if [ -n "$BUNDLE" ]; then
-            xcrun xccov view --report --only-targets "$BUNDLE" > fastlane/test_output/coverage.txt || true
+          shopt -s nullglob
+          bundles=(fastlane/test_output/*.xcresult)
+          if (( ${#bundles[@]} > 0 )); then
+            newest_bundle=$(ls -dt "${bundles[@]}" | head -n 1)
+            xcrun xccov view --report --only-targets "$newest_bundle" > fastlane/test_output/coverage.txt
             echo "Coverage summary written to fastlane/test_output/coverage.txt"
           else
             echo "No .xcresult bundle found; skipping coverage summary"
@@ -82,7 +94,7 @@ jobs:
 
       - name: Upload test artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-artifacts
           path: |
@@ -92,12 +104,78 @@ jobs:
             fastlane/test_output/coverage.txt
           if-no-files-found: warn
 
-  # 2) Build and upload to TestFlight (only if tests pass)
+  app_build:
+    name: App Release build
+    needs: version_check
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: "16.4"
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build app without signing
+        run: |
+          xcodebuild \
+            -project Kuna.xcodeproj \
+            -scheme Kuna \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath .build/ci-app-release/DerivedData \
+            -clonedSourcePackagesDirPath .build/ci-app-release/SourcePackages \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+  widget_build:
+    name: Widget Release build
+    needs: version_check
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: "16.4"
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build widget without signing
+        run: |
+          xcodebuild \
+            -project Kuna.xcodeproj \
+            -scheme KunaWidgetExtension \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath .build/ci-widget-release/DerivedData \
+            -clonedSourcePackagesDirPath .build/ci-widget-release/SourcePackages \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
   build_and_upload:
     name: Build & Upload to TestFlight
-    needs: tests
-    runs-on: macos-latest
+    needs:
+      - tests
+      - app_build
+      - widget_build
+    runs-on: macos-15
     timeout-minutes: 60
+    permissions:
+      contents: read
     env:
       MATCH_S3_BUCKET: ${{ secrets.MATCH_S3_BUCKET }}
       MATCH_S3_ACCESS_KEY_ID: ${{ secrets.MATCH_S3_ACCESS_KEY_ID }}
@@ -108,20 +186,24 @@ jobs:
       FASTLANE_APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.FASTLANE_APP_STORE_CONNECT_KEY_IDENTIFIER }}
       FASTLANE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.FASTLANE_APP_STORE_CONNECT_ISSUER_ID }}
       FASTLANE_APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.FASTLANE_APP_STORE_CONNECT_PRIVATE_KEY }}
-      # Optional release notes override
       RELEASE_NOTES: ${{ github.event.head_commit.message }}
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: "16.4"
+
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
         with:
-          ruby-version: "3.2"
+          ruby-version: "3.4.10"
           bundler-cache: true
-
-      - name: Install gems
-        run: bundle install
 
       - name: Prepare temporary keychain
         run: |
@@ -131,15 +213,15 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
 
-      - name: Build .ipa (Fastlane)
+      - name: Build .ipa
         run: bundle exec fastlane build_ipa
 
-      - name: Upload to TestFlight (Fastlane)
+      - name: Upload to TestFlight
         run: bundle exec fastlane upload_testflight
 
-      - name: Upload artifacts (IPA + dSYM)
+      - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: app-artifacts
           path: |
@@ -147,32 +229,34 @@ jobs:
             fastlane/build/*.dSYM.zip
           if-no-files-found: warn
 
-  # 3) Create or update a GitHub Release with autogenerated notes
   github_release:
     name: GitHub Release
     needs: build_and_upload
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Compute tag name
         id: tag
         run: |
           if [ -n "${{ inputs.tag }}" ]; then
-            echo "value=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
           else
-            # refs/tags/v1.2.3 -> v1.2.3
-            echo "value=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Download app artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: app-artifacts
           path: app-artifacts
 
-      - name: Create/Update Release
-        uses: softprops/action-gh-release@v2
+      - name: Create or update release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.tag.outputs.value }}
           generate_release_notes: true

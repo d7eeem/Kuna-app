@@ -1,12 +1,12 @@
+---
 name: release-pr
+
 on:
   push:
-    branches: [ main ]     # runs when merges land on main
-  workflow_dispatch: {}     # optional: run it by hand too
+    branches: [main]
+  workflow_dispatch: {}
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
   group: release-pr
@@ -15,8 +15,12 @@ concurrency:
 jobs:
   release_pr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-      - uses: googleapis/release-please-action@v4
+      - name: Create release pull request
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: .release-please-config.json
