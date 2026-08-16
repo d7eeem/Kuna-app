@@ -21,6 +21,7 @@ jobs:
       - name: Scan pull-request history
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
+          GITLEAKS_ENABLE_COMMENTS: "false"
           GITHUB_TOKEN: ${{ github.token }}
 
   tests:
@@ -28,9 +29,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 60
     permissions:
-      checks: write
       contents: read
-      pull-requests: write
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -81,11 +80,25 @@ jobs:
             fastlane/test_output/coverage.txt
           if-no-files-found: warn
 
-      - name: Publish unit test results
-        if: ${{ always() && github.event.pull_request.head.repo.fork == false }}
-        uses: EnricoMi/publish-unit-test-result-action/macos@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2
+  publish_results:
+    name: Publish unit test results
+    needs: tests
+    if: ${{ always() && !cancelled() && github.event.pull_request.head.repo.fork == false }}
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+    steps:
+      - name: Download test artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          files: "fastlane/test_output/junit.xml"
+          name: test-artifacts
+          path: test-artifacts
+
+      - name: Publish unit test results
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2
+        with:
+          comment_mode: "off"
+          files: "test-artifacts/junit.xml"
 
   app_build:
     name: App Debug build
